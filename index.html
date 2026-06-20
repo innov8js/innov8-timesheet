@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Innov8 Weekly Timesheet</title>
+  <title>Weekly Timesheet</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
@@ -99,20 +99,27 @@
 
 <body>
   <div class="container">
-    <h1>Innov8 Weekly Timesheet</h1>
+    <h1>Weekly Timesheet</h1>
 
     <label>Worker Name</label>
     <input type="text" id="workerName" placeholder="Enter worker name">
-<label>Company Name</label>
-<select id="companyName">
-  <option value="">Select Company</option>
-  <option value="I&M Joinery">I&M Joinery</option>
-  <option value="Innov8 Labour Solutions">Innov8 Labour Solutions</option>
-  <option value="Other">Other</option>
-</select>
 
-<label>Job Site / Address</label>
-<input type="text" id="jobSite" placeholder="Enter site name or address">
+    <label>Company Name</label>
+    <select id="companyName" onchange="toggleOtherCompany()">
+      <option value="">Select Company</option>
+      <option value="I&M Joinery">I&M Joinery</option>
+      <option value="Innov8 Labour Solutions">Innov8 Labour Solutions</option>
+      <option value="Other">Other</option>
+    </select>
+
+    <div id="otherCompanyBox" style="display:none;">
+      <label>Other Company Name</label>
+      <input type="text" id="otherCompanyName" placeholder="Enter company name">
+    </div>
+
+    <label>Job Site / Address</label>
+    <input type="text" id="jobSite" placeholder="Enter site name or address">
+
     <label>Week Starting Monday</label>
     <input type="date" id="weekStart" onchange="updateDates()">
 
@@ -139,17 +146,30 @@
   <script>
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
-    function createTimeOptions() {
+    function toggleOtherCompany() {
+      const company = document.getElementById("companyName").value;
+      document.getElementById("otherCompanyBox").style.display = company === "Other" ? "block" : "none";
+    }
+
+    function getCompanyName() {
+      const company = document.getElementById("companyName").value;
+      if (company === "Other") {
+        return document.getElementById("otherCompanyName").value || "Other Company";
+      }
+      return company || "Company";
+    }
+
+    function createTimeOptions(startHour) {
       let options = '<option value="">--</option>';
 
-      for (let h = 0; h < 24; h++) {
+      for (let h = startHour; h < 24; h++) {
         for (let m = 0; m < 60; m += 15) {
           const value = String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
 
           let displayHour = h % 12;
           if (displayHour === 0) displayHour = 12;
           const ampm = h >= 12 ? "PM" : "AM";
-          const display = value + " (" + displayHour + ":" + String(m).padStart(2, "0") + " " + ampm + ")";
+          const display = displayHour + ":" + String(m).padStart(2, "0") + " " + ampm;
 
           options += `<option value="${value}">${display}</option>`;
         }
@@ -159,7 +179,6 @@
     }
 
     function formatDate(date) {
-      if (!date) return "";
       const d = String(date.getDate()).padStart(2, "0");
       const m = String(date.getMonth() + 1).padStart(2, "0");
       const y = date.getFullYear();
@@ -168,7 +187,8 @@
 
     function loadTable() {
       const tbody = document.getElementById("timesheetBody");
-      const timeOptions = createTimeOptions();
+      const startOptions = createTimeOptions(6);
+      const finishOptions = createTimeOptions(12);
 
       tbody.innerHTML = "";
 
@@ -176,12 +196,12 @@
         tbody.innerHTML += `
           <tr>
             <td class="dayDate" data-index="${index}">${day}</td>
-            <td><select class="start" onchange="calculateHours()">${timeOptions}</select></td>
-            <td><select class="finish" onchange="calculateHours()">${timeOptions}</select></td>
+            <td><select class="start" onchange="calculateHours()">${startOptions}</select></td>
+            <td><select class="finish" onchange="calculateHours()">${finishOptions}</select></td>
             <td>
               <select class="breakOption" onchange="calculateHours()">
-                <option value="yes">30 min</option>
-                <option value="no">No Break</option>
+                <option value="30">30 min</option>
+                <option value="0">No Break</option>
               </select>
             </td>
             <td class="hours">0.00</td>
@@ -200,7 +220,6 @@
         const index = Number(cell.dataset.index);
         const date = new Date(startDate);
         date.setDate(startDate.getDate() + index);
-
         cell.textContent = `${days[index]} ${formatDate(date)}`;
       });
     }
@@ -217,19 +236,14 @@
       document.querySelectorAll("#timesheetBody tr").forEach(row => {
         const start = row.querySelector(".start").value;
         const finish = row.querySelector(".finish").value;
-        const breakOption = row.querySelector(".breakOption").value;
+        const breakMinutes = Number(row.querySelector(".breakOption").value);
         const hoursCell = row.querySelector(".hours");
 
         const startMin = timeToMinutes(start);
         const finishMin = timeToMinutes(finish);
 
         if (startMin !== null && finishMin !== null && finishMin > startMin) {
-          let workedMinutes = finishMin - startMin;
-
-          if (breakOption === "yes") {
-            workedMinutes -= 30;
-          }
-
+          let workedMinutes = finishMin - startMin - breakMinutes;
           if (workedMinutes < 0) workedMinutes = 0;
 
           const hours = workedMinutes / 60;
@@ -243,101 +257,98 @@
       document.getElementById("totalHours").textContent = total.toFixed(2);
     }
 
-   function generatePDF() {
-   ...
-}
-function generatePDF() {
-  calculateHours();
+    function generatePDF() {
+      calculateHours();
 
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
 
-  const workerName = document.getElementById("workerName").value || "Worker";
-  const companyName = document.getElementById("companyName").value || "-";
-  const jobSite = document.getElementById("jobSite").value || "-";
-  const weekStart = document.getElementById("weekStart").value || "-";
-  const totalHours = document.getElementById("totalHours").textContent;
+      const workerName = document.getElementById("workerName").value || "Worker";
+      const companyName = getCompanyName();
+      const jobSite = document.getElementById("jobSite").value || "-";
+      const weekStart = document.getElementById("weekStart").value || "-";
+      const totalHours = document.getElementById("totalHours").textContent;
 
-  // Header
-  doc.setFillColor(20, 20, 20);
-  doc.rect(0, 0, 210, 30, "F");
+      const title = companyName.toUpperCase() + " WEEKLY TIMESHEET";
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(20);
-  doc.text("Innov8 Weekly Timesheet", 20, 19);
+      doc.setFillColor(20, 20, 20);
+      doc.rect(0, 0, 210, 34, "F");
 
-  doc.setTextColor(0, 0, 0);
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(18);
+      doc.text(title, 15, 21);
 
-  // Info box
-  doc.setDrawColor(180, 180, 180);
-  doc.roundedRect(15, 38, 180, 35, 3, 3);
+      doc.setTextColor(0, 0, 0);
+      doc.setDrawColor(180, 180, 180);
+      doc.roundedRect(15, 42, 180, 40, 3, 3);
 
-  doc.setFontSize(11);
-  doc.text("Worker Name: " + workerName, 20, 48);
-  doc.text("Company Name: " + companyName, 20, 56);
-  doc.text("Job Site / Address: " + jobSite, 20, 64);
-  doc.text("Week Starting: " + weekStart, 125, 48);
+      doc.setFontSize(11);
+      doc.text("Worker Name: " + workerName, 20, 52);
+      doc.text("Company Name: " + companyName, 20, 61);
+      doc.text("Job Site / Address: " + jobSite, 20, 70);
+      doc.text("Week Starting: " + weekStart, 125, 52);
 
-  // Table header
-  let y = 88;
+      let y = 96;
 
-  doc.setFillColor(20, 20, 20);
-  doc.rect(15, y - 7, 180, 10, "F");
+      doc.setFillColor(20, 20, 20);
+      doc.rect(15, y - 7, 180, 10, "F");
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(10);
-  doc.text("Day / Date", 20, y);
-  doc.text("Start", 75, y);
-  doc.text("Finish", 105, y);
-  doc.text("Break", 135, y);
-  doc.text("Hours", 165, y);
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(10);
+      doc.text("Day / Date", 20, y);
+      doc.text("Start", 75, y);
+      doc.text("Finish", 105, y);
+      doc.text("Break", 135, y);
+      doc.text("Hours", 165, y);
 
-  doc.setTextColor(0, 0, 0);
-  y += 8;
+      doc.setTextColor(0, 0, 0);
+      y += 8;
 
-  // Rows
-  document.querySelectorAll("#timesheetBody tr").forEach(row => {
-    const dayDate = row.querySelector(".dayDate").textContent;
-    const start = row.querySelector(".start").value || "-";
-    const finish = row.querySelector(".finish").value || "-";
-    const breakText = row.querySelector(".breakOption").value === "yes" ? "30 min" : "No Break";
-    const hours = row.querySelector(".hours").textContent;
+      document.querySelectorAll("#timesheetBody tr").forEach(row => {
+        const dayDate = row.querySelector(".dayDate").textContent;
+        const start = row.querySelector(".start").value || "-";
+        const finish = row.querySelector(".finish").value || "-";
+        const breakText = row.querySelector(".breakOption").value === "30" ? "30 min" : "No Break";
+        const hours = row.querySelector(".hours").textContent;
 
-    doc.setDrawColor(220, 220, 220);
-    doc.rect(15, y - 6, 180, 9);
+        doc.setDrawColor(220, 220, 220);
+        doc.rect(15, y - 6, 180, 9);
 
-    doc.setFontSize(10);
-    doc.text(dayDate, 20, y);
-    doc.text(start, 75, y);
-    doc.text(finish, 105, y);
-    doc.text(breakText, 135, y);
-    doc.text(hours, 165, y);
+        doc.setFontSize(10);
+        doc.text(dayDate, 20, y);
+        doc.text(start, 75, y);
+        doc.text(finish, 105, y);
+        doc.text(breakText, 135, y);
+        doc.text(hours, 165, y);
 
-    y += 9;
-  });
+        y += 9;
+      });
 
-  // Total box
-  y += 8;
-  doc.setFillColor(240, 240, 240);
-  doc.roundedRect(115, y - 8, 80, 15, 3, 3, "F");
+      y += 10;
 
-  doc.setFontSize(14);
-  doc.text("Total Hours: " + totalHours, 120, y + 2);
+      doc.setFillColor(240, 240, 240);
+      doc.roundedRect(115, y - 8, 80, 16, 3, 3, "F");
 
-  // Signatures
-  y += 35;
-  doc.setFontSize(11);
-  doc.text("Worker Signature: ______________________________", 20, y);
-  y += 15;
-  doc.text("Supervisor Signature: ___________________________", 20, y);
+      doc.setFontSize(14);
+      doc.text("Total Hours: " + totalHours, 120, y + 2);
 
-  // Footer
-  doc.setFontSize(9);
-  doc.setTextColor(120, 120, 120);
-  doc.text("Generated by Innov8 Labour Solutions", 20, 285);
+      y += 35;
 
-  doc.save(workerName + "-weekly-timesheet.pdf");
-}
+      doc.setFontSize(11);
+      doc.text("Worker Signature: ______________________________", 20, y);
+      y += 16;
+      doc.text("Supervisor Signature: ___________________________", 20, y);
+
+      doc.setFontSize(9);
+      doc.setTextColor(120, 120, 120);
+      doc.text("Generated by " + companyName, 20, 285);
+
+      const safeCompany = companyName.replace(/[^a-z0-9]/gi, "_");
+      const safeWorker = workerName.replace(/[^a-z0-9]/gi, "_");
+
+      doc.save(safeWorker + "_" + safeCompany + "_Timesheet.pdf");
+    }
+
     loadTable();
   </script>
 </body>
