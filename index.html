@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Innov8 Timesheet</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f4; }
+    .box { background: white; padding: 20px; border-radius: 10px; max-width: 900px; margin: auto; }
+    h1 { text-align: center; color: #111; }
+    input, select, button { padding: 10px; margin: 5px; font-size: 16px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    button { background: #111; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    .total { font-size: 22px; font-weight: bold; text-align: right; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Innov8 Weekly Timesheet</h1>
+
+    <label>Worker Name:</label>
+    <input type="text" id="workerName" placeholder="Enter worker name" />
+
+    <label>Week Starting:</label>
+    <input type="date" id="weekStart" />
+
+    <table>
+      <thead>
+        <tr>
+          <th>Day</th>
+          <th>Start Time</th>
+          <th>Finish Time</th>
+          <th>30 Min Break</th>
+          <th>Hours</th>
+        </tr>
+      </thead>
+      <tbody id="timesheet"></tbody>
+    </table>
+
+    <div class="total">Total Hours: <span id="totalHours">0.00</span></div>
+
+    <button onclick="generatePDF()">Generate PDF</button>
+  </div>
+
+  <script>
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+    function createTimeOptions() {
+      let options = '<option value="">--</option>';
+      for (let h = 0; h < 24; h++) {
+        for (let m = 0; m < 60; m += 15) {
+          const time = String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+          options += `<option value="${time}">${time}</option>`;
+        }
+      }
+      return options;
+    }
+
+    function loadTable() {
+      const tbody = document.getElementById("timesheet");
+      const timeOptions = createTimeOptions();
+
+      days.forEach(day => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${day}</td>
+            <td><select onchange="calculateHours()" class="start">${timeOptions}</select></td>
+            <td><select onchange="calculateHours()" class="finish">${timeOptions}</select></td>
+            <td>
+              <select onchange="calculateHours()" class="break">
+                <option value="yes">Yes</option>
+                <option value="no">No Break</option>
+              </select>
+            </td>
+            <td class="hours">0.00</td>
+          </tr>
+        `;
+      });
+    }
+
+    function timeToMinutes(time) {
+      if (!time) return null;
+      const [h, m] = time.split(":").map(Number);
+      return h * 60 + m;
+    }
+
+    function calculateHours() {
+      const rows = document.querySelectorAll("#timesheet tr");
+      let total = 0;
+
+      rows.forEach(row => {
+        const start = row.querySelector(".start").value;
+        const finish = row.querySelector(".finish").value;
+        const breakOption = row.querySelector(".break").value;
+        const hoursCell = row.querySelector(".hours");
+
+        const startMin = timeToMinutes(start);
+        const finishMin = timeToMinutes(finish);
+
+        if (startMin !== null && finishMin !== null && finishMin > startMin) {
+          let workedMinutes = finishMin - startMin;
+
+          if (breakOption === "yes") {
+            workedMinutes -= 30;
+          }
+
+          const hours = workedMinutes / 60;
+          hoursCell.textContent = hours.toFixed(2);
+          total += hours;
+        } else {
+          hoursCell.textContent = "0.00";
+        }
+      });
+
+      document.getElementById("totalHours").textContent = total.toFixed(2);
+    }
+
+    function generatePDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      const workerName = document.getElementById("workerName").value || "Worker";
+      const weekStart = document.getElementById("weekStart").value || "-";
+      const totalHours = document.getElementById("totalHours").textContent;
+
+      doc.setFontSize(18);
+      doc.text("Innov8 Weekly Timesheet", 20, 20);
+
+      doc.setFontSize(12);
+      doc.text(`Worker Name: ${workerName}`, 20, 35);
+      doc.text(`Week Starting: ${weekStart}`, 20, 45);
+
+      let y = 60;
+      doc.text("Day", 20, y);
+      doc.text("Start", 60, y);
+      doc.text("Finish", 95, y);
+      doc.text("Break", 130, y);
+      doc.text("Hours", 165, y);
+
+      y += 10;
+
+      document.querySelectorAll("#timesheet tr").forEach(row => {
+        const day = row.children[0].textContent;
+        const start = row.querySelector(".start").value || "-";
+        const finish = row.querySelector(".finish").value || "-";
+        const breakOption = row.querySelector(".break").value === "yes" ? "30 min" : "No";
+        const hours = row.querySelector(".hours").textContent;
+
+        doc.text(day, 20, y);
+        doc.text(start, 60, y);
+        doc.text(finish, 95, y);
+        doc.text(breakOption, 130, y);
+        doc.text(hours, 165, y);
+
+        y += 10;
+      });
+
+      y += 10;
+      doc.setFontSize(14);
+      doc.text(`Total Hours: ${totalHours}`, 20, y);
+
+      doc.save(`${workerName}-timesheet.pdf`);
+    }
+
+    loadTable();
+  </script>
+</body>
+</html>
