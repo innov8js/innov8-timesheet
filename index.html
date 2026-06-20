@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Weekly Timesheet</title>
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
   <style>
@@ -16,9 +15,9 @@
     }
 
     .container {
-      max-width: 1000px;
+      max-width: 1100px;
       margin: auto;
-      background: white;
+      background: #fff;
       padding: 20px;
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
@@ -37,9 +36,9 @@
 
     input, select {
       width: 100%;
-      padding: 12px;
+      padding: 10px;
       margin-top: 5px;
-      font-size: 16px;
+      font-size: 15px;
       box-sizing: border-box;
     }
 
@@ -47,18 +46,22 @@
       width: 100%;
       border-collapse: collapse;
       margin-top: 20px;
-      font-size: 14px;
+      font-size: 13px;
     }
 
     th, td {
       border: 1px solid #ccc;
-      padding: 8px;
+      padding: 6px;
       text-align: center;
     }
 
     th {
       background: #111;
       color: white;
+    }
+
+    .notesInput {
+      min-width: 150px;
     }
 
     .total {
@@ -82,15 +85,15 @@
 
     @media (max-width: 700px) {
       table {
-        font-size: 12px;
+        font-size: 11px;
       }
 
       th, td {
-        padding: 5px;
+        padding: 4px;
       }
 
-      select {
-        font-size: 12px;
+      select, input {
+        font-size: 11px;
         padding: 6px;
       }
     }
@@ -117,9 +120,6 @@
       <input type="text" id="otherCompanyName" placeholder="Enter company name">
     </div>
 
-    <label>Job Site / Address</label>
-    <input type="text" id="jobSite" placeholder="Enter site name or address">
-
     <label>Week Starting Monday</label>
     <input type="date" id="weekStart" onchange="updateDates()">
 
@@ -127,6 +127,7 @@
       <thead>
         <tr>
           <th>Day / Date</th>
+          <th>Job Site / Notes</th>
           <th>Start Time</th>
           <th>Finish Time</th>
           <th>Break</th>
@@ -159,10 +160,10 @@
       return company || "Company";
     }
 
-    function createTimeOptions(startHour) {
+    function createTimeOptions() {
       let options = '<option value="">--</option>';
 
-      for (let h = startHour; h < 24; h++) {
+      for (let h = 0; h < 24; h++) {
         for (let m = 0; m < 60; m += 15) {
           const value = String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
 
@@ -187,8 +188,7 @@
 
     function loadTable() {
       const tbody = document.getElementById("timesheetBody");
-      const startOptions = createTimeOptions(6);
-      const finishOptions = createTimeOptions(12);
+      const timeOptions = createTimeOptions();
 
       tbody.innerHTML = "";
 
@@ -196,8 +196,9 @@
         tbody.innerHTML += `
           <tr>
             <td class="dayDate" data-index="${index}">${day}</td>
-            <td><select class="start" onchange="calculateHours()">${startOptions}</select></td>
-            <td><select class="finish" onchange="calculateHours()">${finishOptions}</select></td>
+            <td><input class="notesInput" type="text" placeholder="Site / notes"></td>
+            <td><select class="start" onchange="calculateHours()">${timeOptions}</select></td>
+            <td><select class="finish" onchange="calculateHours()">${timeOptions}</select></td>
             <td>
               <select class="breakOption" onchange="calculateHours()">
                 <option value="30">30 min</option>
@@ -265,47 +266,46 @@
 
       const workerName = document.getElementById("workerName").value || "Worker";
       const companyName = getCompanyName();
-      const jobSite = document.getElementById("jobSite").value || "-";
       const weekStart = document.getElementById("weekStart").value || "-";
       const totalHours = document.getElementById("totalHours").textContent;
 
-      const title = companyName.toUpperCase() + " WEEKLY TIMESHEET";
-
       doc.setFillColor(20, 20, 20);
-      doc.rect(0, 0, 210, 34, "F");
+      doc.rect(0, 0, 210, 35, "F");
 
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(18);
-      doc.text(title, 15, 21);
+      doc.text(companyName.toUpperCase(), 15, 16);
+      doc.setFontSize(14);
+      doc.text("WEEKLY TIMESHEET", 15, 27);
 
       doc.setTextColor(0, 0, 0);
-      doc.setDrawColor(180, 180, 180);
-      doc.roundedRect(15, 42, 180, 40, 3, 3);
-
       doc.setFontSize(11);
-      doc.text("Worker Name: " + workerName, 20, 52);
-      doc.text("Company Name: " + companyName, 20, 61);
-      doc.text("Job Site / Address: " + jobSite, 20, 70);
-      doc.text("Week Starting: " + weekStart, 125, 52);
 
-      let y = 96;
+      doc.roundedRect(15, 43, 180, 30, 3, 3);
+      doc.text("Worker Name: " + workerName, 20, 54);
+      doc.text("Company Name: " + companyName, 20, 63);
+      doc.text("Week Starting: " + weekStart, 125, 54);
+
+      let y = 88;
 
       doc.setFillColor(20, 20, 20);
       doc.rect(15, y - 7, 180, 10, "F");
 
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(10);
-      doc.text("Day / Date", 20, y);
-      doc.text("Start", 75, y);
-      doc.text("Finish", 105, y);
-      doc.text("Break", 135, y);
-      doc.text("Hours", 165, y);
+      doc.setFontSize(9);
+      doc.text("Day / Date", 18, y);
+      doc.text("Site / Notes", 55, y);
+      doc.text("Start", 105, y);
+      doc.text("Finish", 130, y);
+      doc.text("Break", 155, y);
+      doc.text("Hours", 180, y);
 
       doc.setTextColor(0, 0, 0);
       y += 8;
 
       document.querySelectorAll("#timesheetBody tr").forEach(row => {
         const dayDate = row.querySelector(".dayDate").textContent;
+        const notes = row.querySelector(".notesInput").value || "-";
         const start = row.querySelector(".start").value || "-";
         const finish = row.querySelector(".finish").value || "-";
         const breakText = row.querySelector(".breakOption").value === "30" ? "30 min" : "No Break";
@@ -314,17 +314,18 @@
         doc.setDrawColor(220, 220, 220);
         doc.rect(15, y - 6, 180, 9);
 
-        doc.setFontSize(10);
-        doc.text(dayDate, 20, y);
-        doc.text(start, 75, y);
-        doc.text(finish, 105, y);
-        doc.text(breakText, 135, y);
-        doc.text(hours, 165, y);
+        doc.setFontSize(8);
+        doc.text(dayDate, 18, y);
+        doc.text(notes.substring(0, 25), 55, y);
+        doc.text(start, 105, y);
+        doc.text(finish, 130, y);
+        doc.text(breakText, 155, y);
+        doc.text(hours, 180, y);
 
         y += 9;
       });
 
-      y += 10;
+      y += 12;
 
       doc.setFillColor(240, 240, 240);
       doc.roundedRect(115, y - 8, 80, 16, 3, 3, "F");
@@ -333,7 +334,6 @@
       doc.text("Total Hours: " + totalHours, 120, y + 2);
 
       y += 35;
-
       doc.setFontSize(11);
       doc.text("Worker Signature: ______________________________", 20, y);
       y += 16;
@@ -343,8 +343,8 @@
       doc.setTextColor(120, 120, 120);
       doc.text("Generated by " + companyName, 20, 285);
 
-      const safeCompany = companyName.replace(/[^a-z0-9]/gi, "_");
       const safeWorker = workerName.replace(/[^a-z0-9]/gi, "_");
+      const safeCompany = companyName.replace(/[^a-z0-9]/gi, "_");
 
       doc.save(safeWorker + "_" + safeCompany + "_Timesheet.pdf");
     }
