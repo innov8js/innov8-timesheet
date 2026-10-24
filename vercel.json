@@ -1,0 +1,11 @@
+
+{
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "destination": "https://innov8timesheet.vercel.app",
+      "permanent": false
+    }
+  ]
+}
+  
